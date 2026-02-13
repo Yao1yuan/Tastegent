@@ -7,6 +7,7 @@ import json
 from dotenv import load_dotenv
 from anthropic import Anthropic
 from openai import OpenAI
+import google.generativeai as genai
 
 load_dotenv()
 
@@ -49,6 +50,7 @@ async def get_menu():
 async def chat(request: ChatRequest):
     anthropic_key = os.getenv("ANTHROPIC_API_KEY")
     openai_key = os.getenv("OPENAI_API_KEY")
+    google_key = os.getenv("GOOGLE_API_KEY")
 
     # Construct system prompt
     menu_str = json.dumps(menu_data, indent=2)
@@ -61,13 +63,62 @@ Answer questions about the menu, recommend dishes, and help the customer decide.
 Be polite and concise.
 """
 
-    if anthropic_key:
+    if google_key:
+        try:
+            genai.configure(api_key=google_key)
+            model = genai.GenerativeModel('gemini-2.5-flash')
+
+            # Gemini chat history structure
+            history = []
+
+            # Add system prompt as the first part of the conversation if possible,
+            # or just rely on context in the first user message.
+            # Gemini's chat history is a list of Content objects.
+            # Simulating system prompt by prepending to the first user message or sending it first.
+
+            # Let's construct the history properly
+            # Note: Gemini roles are 'user' and 'model'
+
+            gemini_history = []
+
+            # Add system prompt as context
+            gemini_history.append({
+                "role": "user",
+                "parts": [system_prompt]
+            })
+
+            gemini_history.append({
+                "role": "model",
+                "parts": ["Understood. I am ready to help the customer with the menu."]
+            })
+
+            # Append conversation history
+            for msg in request.messages[:-1]: # All except the last one which is the new prompt
+                role = "user" if msg.role == "user" else "model"
+                gemini_history.append({
+                    "role": role,
+                    "parts": [msg.content]
+                })
+
+            chat_session = model.start_chat(history=gemini_history)
+
+            last_message = request.messages[-1].content
+            response = chat_session.send_message(last_message)
+
+            return {
+                "role": "assistant",
+                "content": response.text
+            }
+
+        except Exception as e:
+            print(f"Error calling Gemini: {e}")
+            import traceback
+            traceback.print_exc()
+            return {"role": "assistant", "content": "Sorry, I encountered an error with the AI service."}
+
+    elif anthropic_key:
         try:
             client = Anthropic(api_key=anthropic_key)
-
-            # Convert messages for Anthropic
-            # Anthropic expects 'user' and 'assistant' roles
-            # System prompt is separate parameter
 
             messages = []
             for msg in request.messages:
@@ -86,8 +137,7 @@ Be polite and concise.
                 "content": response.content[0].text
             }
         except Exception as e:
-            print(f"Error calling Anthropic: {{e}}")
-            # In production, log the error and return a generic message
+            print(f"Error calling Anthropic: {e}")
             import traceback
             traceback.print_exc()
             return {"role": "assistant", "content": "Sorry, I encountered an error with the AI service."}
@@ -110,7 +160,7 @@ Be polite and concise.
                 "content": response.choices[0].message.content
             }
         except Exception as e:
-            print(f"Error calling OpenAI: {{e}}")
+            print(f"Error calling OpenAI: {e}")
             import traceback
             traceback.print_exc()
             return {"role": "assistant", "content": "Sorry, I encountered an error with the AI service."}
@@ -118,7 +168,7 @@ Be polite and concise.
     else:
         return {
             "role": "assistant",
-            "content": "Configuration missing. Please set ANTHROPIC_API_KEY or OPENAI_API_KEY in the backend environment."
+            "content": "Configuration missing. Please set GOOGLE_API_KEY, ANTHROPIC_API_KEY, or OPENAI_API_KEY in the backend environment."
         }
 
 if __name__ == "__main__":

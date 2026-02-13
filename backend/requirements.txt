@@ -4,3 +4,5 @@ python-dotenv
 pydantic
 anthropic
 openai
+
+google-generativeai
