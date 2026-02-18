@@ -6,3 +6,6 @@ anthropic
 openai
 
 google-generativeai
+python-multipart
+Pillow
+httpx

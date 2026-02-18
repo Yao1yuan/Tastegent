@@ -1,9 +1,15 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import List, Optional
 import os
 import json
+import shutil
+import uuid
+from pathlib import Path
+from PIL import Image
+import io
 from dotenv import load_dotenv
 from anthropic import Anthropic
 from openai import OpenAI
@@ -21,6 +27,65 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Mount uploads directory to serve static files
+UPLOAD_DIR = Path("uploads")
+UPLOAD_DIR.mkdir(exist_ok=True)
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+
+@app.post("/upload")
+async def upload_file(file: UploadFile = File(...)):
+    try:
+        # Generate a unique filename
+        file_extension = os.path.splitext(file.filename)[1]
+        unique_filename = f"{uuid.uuid4()}{file_extension}"
+        file_path = UPLOAD_DIR / unique_filename
+
+        # Check if it's an image and compress if necessary
+        if file.content_type.startswith("image/"):
+            try:
+                # Read image content
+                content = await file.read()
+                image = Image.open(io.BytesIO(content))
+
+                # Convert to RGB if necessary (e.g. for PNGs with transparency if saving as JPEG)
+                if image.mode in ("RGBA", "P"):
+                    image = image.convert("RGB")
+
+                # Compress and save as JPEG
+                compressed_filename = f"{uuid.uuid4()}.jpg"
+                compressed_path = UPLOAD_DIR / compressed_filename
+
+                # Resize if too large (max 1920x1080)
+                max_size = (1920, 1080)
+                image.thumbnail(max_size, Image.Resampling.LANCZOS)
+
+                # Save with quality optimization
+                image.save(compressed_path, "JPEG", quality=85, optimize=True)
+
+                return {
+                    "filename": compressed_filename,
+                    "url": f"/uploads/{compressed_filename}",
+                    "original_filename": file.filename,
+                    "content_type": "image/jpeg"
+                }
+            except Exception as e:
+                print(f"Error compressing image: {e}")
+                # Fallback to saving original file if compression fails
+                file.file.seek(0)
+
+        # Save original file if not an image or compression failed
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+
+        return {
+            "filename": unique_filename,
+            "url": f"/uploads/{unique_filename}",
+            "original_filename": file.filename,
+            "content_type": file.content_type
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 class Message(BaseModel):
     role: str
