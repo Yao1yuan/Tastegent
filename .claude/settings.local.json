@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm:*)",
+      "Bash(npx playwright install)",
+      "Bash(npx playwright test:*)"
+    ]
+  }
+}
