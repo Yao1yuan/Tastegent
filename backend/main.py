@@ -4,7 +4,48 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import List, Optional
 import os
+from fastapi import FastAPI, HTTPException, UploadFile, File, Depends, Header
+from fastapi.security import APIKeyHeader
+from starlette.status import HTTP_403_FORBIDDEN
 import json
+
+# ... (existing code) ...
+
+# Simple password protection
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "supersecret")
+X_ADMIN_HEADER = APIKeyHeader(name="X-Admin-Password")
+
+async def verify_admin_password(x_admin_password: str = Depends(X_ADMIN_HEADER)):
+    if x_admin_password != ADMIN_PASSWORD:
+        raise HTTPException(status_code=HTTP_403_FORBIDDEN, detail="Admin password required")
+
+class ImageUrlPayload(BaseModel):
+    imageUrl: str
+
+@app.put("/admin/menu/{item_id}/image", dependencies=[Depends(verify_admin_password)])
+async def update_menu_item_image(item_id: int, payload: ImageUrlPayload):
+    global menu_data
+
+    item_found = False
+    for item in menu_data:
+        if item["id"] == item_id:
+            item["imageUrl"] = payload.imageUrl
+            item_found = True
+            break
+
+    if not item_found:
+        raise HTTPException(status_code=404, detail="Menu item not found")
+
+    try:
+        with open("menu.json", "w") as f:
+            json.dump(menu_data, f, indent=2)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to write to menu.json: {e}")
+
+    return {"message": f"Successfully updated image for menu item {item_id}"}
+
+# ... (existing chat endpoint and other code) ...
+
 import shutil
 import uuid
 from pathlib import Path

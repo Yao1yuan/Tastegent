@@ -4,34 +4,39 @@
     "name": "Classic Burger",
     "description": "Juicy beef patty with lettuce, tomato, and secret sauce",
     "price": 12.99,
-    "tags": ["main", "beef"]
+    "tags": ["main", "beef"],
+    "imageUrl": null
   },
   {
     "id": 2,
     "name": "Margherita Pizza",
     "description": "Fresh basil, mozzarella, and tomato sauce",
     "price": 14.50,
-    "tags": ["main", "vegetarian"]
+    "tags": ["main", "vegetarian"],
+    "imageUrl": null
   },
   {
     "id": 3,
     "name": "Caesar Salad",
     "description": "Romaine lettuce, parmesan, croutons, and caesar dressing",
     "price": 9.99,
-    "tags": ["starter", "vegetarian"]
+    "tags": ["starter", "vegetarian"],
+    "imageUrl": null
   },
   {
     "id": 4,
     "name": "Tiramisu",
     "description": "Coffee-flavored Italian dessert",
     "price": 7.50,
-    "tags": ["dessert"]
+    "tags": ["dessert"],
+    "imageUrl": null
   },
   {
     "id": 5,
     "name": "Cola",
     "description": "Refreshing carbonated beverage",
     "price": 2.50,
-    "tags": ["drink"]
+    "tags": ["drink"],
+    "imageUrl": null
   }
 ]

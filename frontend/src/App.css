@@ -33,11 +33,25 @@ header {
 }
 
 .menu-item {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
   border: 1px solid #eee;
   border-radius: 8px;
   padding: 1rem;
   margin-bottom: 1rem;
   background-color: #f9f9f9;
+}
+
+.menu-item-content {
+  flex: 1;
+}
+
+.menu-item-image {
+  width: 100px;
+  height: 100px;
+  object-fit: cover;
+  border-radius: 8px;
 }
 
 .menu-header {
