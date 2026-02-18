@@ -1,8 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
-import axios from 'axios'
 import './App.css'
+import ImageUpload from './components/ImageUpload'
+import { getMenu, chat, uploadFile } from './services/api'
 
-const API_URL = 'http://localhost:8000'
+// API_URL is now handled in api.js, but we might need it for image URL
+// We can export it from api.js or just hardcode it here for the image src since it's static
+const API_BASE_URL = 'http://localhost:8000'
 
 function App() {
   const [messages, setMessages] = useState([
@@ -11,13 +14,14 @@ function App() {
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [menu, setMenu] = useState([])
+  const [uploadedImage, setUploadedImage] = useState(null)
   const messagesEndRef = useRef(null)
 
   useEffect(() => {
     // Fetch menu on load
-    axios.get(`${API_URL}/menu`)
-      .then(response => {
-        setMenu(response.data)
+    getMenu()
+      .then(data => {
+        setMenu(data)
       })
       .catch(error => {
         console.error('Error fetching menu:', error)
@@ -30,6 +34,23 @@ function App() {
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+  }
+
+  const handleImageUpload = async (file) => {
+    try {
+      const data = await uploadFile(file)
+      console.log('Upload success:', data)
+      setUploadedImage(data)
+
+      // Optionally add a message to the chat
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: `I received your image: ${data.original_filename}. Let me see what I can do with it.`
+      }])
+    } catch (error) {
+      console.error('Error uploading image:', error)
+      throw error // Re-throw so ImageUpload component handles the error state
+    }
   }
 
   const handleSubmit = async (e) => {
@@ -46,12 +67,7 @@ function App() {
       const params = new URLSearchParams(window.location.search)
       const storeId = params.get('store_id')
 
-      const response = await axios.post(`${API_URL}/chat`, {
-        messages: [...messages, userMessage],
-        store_id: storeId
-      })
-
-      const botMessage = response.data
+      const botMessage = await chat([...messages, userMessage], storeId)
       setMessages(prev => [...prev, botMessage])
     } catch (error) {
       console.error('Error sending message:', error)
@@ -71,6 +87,21 @@ function App() {
       </header>
 
       <div className="main-content">
+        <div className="upload-section">
+          <ImageUpload onUpload={handleImageUpload} />
+          {uploadedImage && (
+            <div className="upload-success">
+              <p>Image uploaded successfully!</p>
+              {/* Note: In production, ensure the backend serves images securely */}
+              <img
+                src={`${API_BASE_URL}${uploadedImage.url}`}
+                alt="Uploaded"
+                style={{width: '100px', borderRadius: '4px', marginTop: '10px'}}
+              />
+            </div>
+          )}
+        </div>
+
         <div className="menu-section">
           <h2>Menu</h2>
           <div className="menu-items">

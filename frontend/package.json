@@ -11,11 +11,15 @@
   },
   "dependencies": {
     "axios": "^1.13.5",
+    "playwright": "^1.58.2",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "react-dom": "^19.2.0",
+    "react-image-crop": "^11.0.10"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
+    "@playwright/test": "^1.58.2",
+    "@types/node": "^25.2.3",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.1",
