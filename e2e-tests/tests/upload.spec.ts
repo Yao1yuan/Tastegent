@@ -7,7 +7,7 @@ test.describe('Image Upload Feature', () => {
 
     // We no longer check for visibility directly, we let Playwright's auto-wait handle it.
     // The label that triggers the file input is what the user sees.
-    const fileInput = page.locator('input[type="file"]');
+    const fileInput = page.locator('#file-upload');
 
     // 2. Select an image file
     // Using a relative path to the react.svg asset in the frontend folder
@@ -42,7 +42,7 @@ test.describe('Image Upload Feature', () => {
     await page.goto('/');
 
     // Select file
-    const fileInput = page.locator('input[type="file"]');
+    const fileInput = page.locator('#file-upload');
     const imagePath = path.join(__dirname, '..', '..', 'frontend', 'src', 'assets', 'react.svg');
     await fileInput.setInputFiles(imagePath);
 

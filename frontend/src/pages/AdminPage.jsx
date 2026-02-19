@@ -1,133 +1,163 @@
 import { useState, useEffect } from 'react';
-import axios from 'axios';
+import api, { getMenu, uploadFile, createMenuItem, updateMenuItem, deleteMenuItem } from '../services/api';
 import '../App.css';
-import ImageUpload from '../components/ImageUpload'; // Import the component
+import ImageUpload from '../components/ImageUpload';
+import Modal from '../components/Modal'; // Import the Modal component
 
-const API_URL = 'http://localhost:8000';
-const ADMIN_PASSWORD = 'supersecret';
+const API_URL = 'http://localhost:8000'; // Keep for image src
+
+
+const initialItemState = {
+  name: '',
+  description: '',
+  price: '',
+  tags: '',
+};
 
 function AdminPage() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [password, setPassword] = useState('');
   const [menu, setMenu] = useState([]);
   const [error, setError] = useState('');
 
-  const fetchMenu = () => {
-    axios.get(`${API_URL}/menu`)
-      .then(response => {
-        setMenu(response.data);
-      })
-      .catch(error => {
-        console.error('Error fetching menu:', error);
-        setError('Failed to fetch menu data.');
-      });
+  // Modal state
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState('create'); // 'create' or 'edit'
+  const [currentItem, setCurrentItem] = useState(initialItemState);
+
+  const fetchMenu = async () => {
+    try {
+      const data = await getMenu();
+      setMenu(data);
+    } catch (error) {
+      console.error('Error fetching menu:', error);
+      setError('Failed to fetch menu data.');
+    }
   };
 
   useEffect(() => {
-    if (isAuthenticated) {
-      fetchMenu();
-    }
-  }, [isAuthenticated]);
+    fetchMenu();
+  }, []);
 
-  const handlePasswordSubmit = (e) => {
-    e.preventDefault();
-    if (password === ADMIN_PASSWORD) {
-      setIsAuthenticated(true);
-      setError('');
+  const openModal = (mode, item = null) => {
+    setModalMode(mode);
+    if (mode === 'edit' && item) {
+      setCurrentItem({ ...item, tags: item.tags.join(', ') });
     } else {
-      setError('Incorrect password');
+      setCurrentItem(initialItemState);
     }
+    setIsModalOpen(true);
   };
 
-  // New handler for uploading and associating image with a menu item
-  const handleImageUploadForMenuItem = async (file, itemId) => {
-    const formData = new FormData();
-    formData.append('file', file);
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setCurrentItem(initialItemState);
+    setError('');
+  };
 
+  const handleFormChange = (e) => {
+    const { name, value } = e.target;
+    setCurrentItem(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
     try {
-      // 1. Upload the image
-      const uploadResponse = await axios.post(`${API_URL}/upload`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+      const price = parseFloat(currentItem.price);
+      if (isNaN(price)) {
+        setError("Price must be a valid number.");
+        return;
+      }
+      const tags = currentItem.tags.split(',').map(tag => tag.trim()).filter(Boolean);
 
-      const { url: imageUrl } = uploadResponse.data;
+      const payload = { ...currentItem, price, tags };
 
-      // 2. Associate the image with the menu item
-      await axios.put(
-        `${API_URL}/admin/menu/${itemId}/image`,
-        { imageUrl },
-        {
-          headers: {
-            'X-Admin-Password': ADMIN_PASSWORD,
-          },
-        }
-      );
+      if (modalMode === 'create') {
+        await createMenuItem(payload);
+      } else {
+        const { id, imageUrl, ...updateData } = payload;
+        await updateMenuItem(id, updateData);
+      }
 
-      // 3. Refresh the menu to show the new image
       fetchMenu();
-
+      closeModal();
     } catch (error) {
-      console.error('Error in image upload and association process:', error);
-      alert('An error occurred. Please check the console and try again.');
+      console.error(`Error ${modalMode === 'create' ? 'creating' : 'updating'} item:`, error);
+      setError(`Failed to ${modalMode === 'create' ? 'create' : 'update'} item.`);
     }
   };
 
-  if (!isAuthenticated) {
-    return (
-      <div className="container" style={{ textAlign: 'center', paddingTop: '50px' }}>
-        <h2>Admin Login</h2>
-        <form onSubmit={handlePasswordSubmit} style={{ display: 'inline-block' }}>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Enter admin password"
-            style={{ padding: '10px', marginRight: '10px' }}
-          />
-          <button type="submit" style={{ padding: '10px' }}>Login</button>
-        </form>
-        {error && <p style={{ color: 'red' }}>{error}</p>}
-      </div>
-    );
-  }
+  const handleDeleteItem = async (itemId) => {
+    if (window.confirm('Are you sure you want to delete this item?')) {
+      try {
+        await deleteMenuItem(itemId);
+        fetchMenu();
+      } catch (error) {
+        console.error('Error deleting item:', error);
+        setError('Failed to delete item.');
+      }
+    }
+  };
+
+  const handleImageUploadForMenuItem = async (file, itemId) => {
+    try {
+      const { url: imageUrl } = await uploadFile(file);
+      await api.put(`/admin/menu/${itemId}/image`, { imageUrl });
+      fetchMenu();
+    } catch (error) {
+      console.error('Error in image upload process:', error);
+      alert('An error occurred during the image upload process.');
+    }
+  };
 
   return (
     <div className="admin-page container">
-      <header>
+      <header className="admin-header">
         <h1>Menu Management</h1>
+        <button onClick={() => openModal('create')} className="add-new-btn">Add New Item</button>
       </header>
-      <div className="menu-section">
-        <div className="menu-items">
-          {menu.map(item => (
-            <div key={item.id} className="admin-menu-item menu-item">
-              <div className="menu-header">
-                <h3>{item.name}</h3>
-                <span className="price">${item.price.toFixed(2)}</span>
-              </div>
-              <p>{item.description}</p>
-              <div className="image-section">
-                {item.imageUrl ? (
-                  <img
-                    src={`${API_URL}${item.imageUrl}`}
-                    alt={item.name}
-                    style={{ width: '150px', height: '150px', objectFit: 'cover', borderRadius: '8px' }}
-                  />
-                ) : (
-                  <div style={{ width: '150px', height: '150px', background: '#f0f0f0', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '8px' }}>
-                    <span>No image</span>
-                  </div>
-                )}
-                <div className="upload-placeholder" style={{ marginTop: '10px' }}>
-                   {/* Pass a function to onUpload that includes the item's ID */}
-                   <ImageUpload onUpload={(file) => handleImageUploadForMenuItem(file, item.id)} />
-                </div>
+
+      {error && <p className="error-message">{error}</p>}
+
+      <div className="menu-grid">
+        {menu.map(item => (
+          <div key={item.id} className="menu-card">
+            <div className="card-image-container">
+              {item.imageUrl ? (
+                <img src={`${API_URL}${item.imageUrl}`} alt={item.name} className="card-image" />
+              ) : (
+                <div className="no-image-placeholder">No Image</div>
+              )}
+               <div className="image-upload-overlay">
+                  <ImageUpload onUpload={(file) => handleImageUploadForMenuItem(file, item.id)} />
               </div>
             </div>
-          ))}
-        </div>
+            <div className="card-content">
+              <h3>{item.name}</h3>
+              <p>{item.description}</p>
+              <div className="card-footer">
+                 <span className="price">${item.price.toFixed(2)}</span>
+                 <div className="card-actions">
+                    <button onClick={() => openModal('edit', item)} className="action-btn">Edit</button>
+                    <button onClick={() => handleDeleteItem(item.id)} className="action-btn delete">Delete</button>
+                 </div>
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
+
+      <Modal show={isModalOpen} onClose={closeModal} title={modalMode === 'create' ? 'Add New Item' : 'Edit Item'}>
+        <form onSubmit={handleSubmit} className="modal-form">
+          <input name="name" value={currentItem.name} onChange={handleFormChange} placeholder="Name" required />
+          <textarea name="description" value={currentItem.description} onChange={handleFormChange} placeholder="Description" required />
+          <input name="price" type="number" step="0.01" value={currentItem.price} onChange={handleFormChange} placeholder="Price" required />
+          <input name="tags" value={currentItem.tags} onChange={handleFormChange} placeholder="Tags (comma-separated)" />
+          <div className="modal-actions">
+             <button type="button" onClick={closeModal} className="btn-secondary">Cancel</button>
+             <button type="submit" className="btn-primary">Save Changes</button>
+          </div>
+        </form>
+        {error && <p className="error-message">{error}</p>}
+      </Modal>
     </div>
   );
 }

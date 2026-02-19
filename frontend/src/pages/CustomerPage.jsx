@@ -23,7 +23,8 @@ function CustomerPage() {
         setMenu(data)
       })
       .catch(error => {
-        console.error('Error fetching menu:', error)
+      // In a real app, you might want to log this to a service like Sentry
+      console.error('Error fetching menu:', error)
       })
   }, [])
 
@@ -38,6 +39,7 @@ function CustomerPage() {
   const handleImageUpload = async (file) => {
     try {
       const data = await uploadFile(file)
+      // For development: log successful upload data
       console.log('Upload success:', data)
       setUploadedImage(data)
 
@@ -47,6 +49,7 @@ function CustomerPage() {
         content: `I received your image: ${data.original_filename}. Let me see what I can do with it.`
       }])
     } catch (error) {
+      // For development: log image upload errors
       console.error('Error uploading image:', error)
       throw error // Re-throw so ImageUpload component handles the error state
     }
@@ -69,6 +72,7 @@ function CustomerPage() {
       const botMessage = await chat([...messages, userMessage], storeId)
       setMessages(prev => [...prev, botMessage])
     } catch (error) {
+      // For development: log chat message errors
       console.error('Error sending message:', error)
       setMessages(prev => [...prev, {
         role: 'assistant',
@@ -136,6 +140,8 @@ function CustomerPage() {
             )}
             <div ref={messagesEndRef} />
           </div>
+
+          <ImageUpload onUpload={handleImageUpload} />
 
           <form onSubmit={handleSubmit} className="input-form">
             <input

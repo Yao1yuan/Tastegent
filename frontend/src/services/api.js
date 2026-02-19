@@ -6,10 +6,33 @@ const api = axios.create({
   baseURL: API_URL,
 })
 
+api.interceptors.request.use((config) => {
+  // TODO: Storing JWT in localStorage is vulnerable to XSS.
+  // In a production environment, this should be moved to an httpOnly cookie.
+  const token = localStorage.getItem('token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
 export const getMenu = async () => {
   const response = await api.get('/menu')
   return response.data
 }
+
+export const login = async (username, password) => {
+  const params = new URLSearchParams();
+  params.append('username', username);
+  params.append('password', password);
+
+  const response = await api.post('/token', params, {
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+  });
+  return response.data;
+};
 
 export const chat = async (messages, storeId) => {
   const response = await api.post('/chat', {
@@ -30,5 +53,20 @@ export const uploadFile = async (file) => {
   })
   return response.data
 }
+
+export const createMenuItem = async (itemData) => {
+  const response = await api.post('/admin/menu', itemData);
+  return response.data;
+};
+
+export const updateMenuItem = async (itemId, itemData) => {
+  const response = await api.put(`/admin/menu/${itemId}`, itemData);
+  return response.data;
+};
+
+export const deleteMenuItem = async (itemId) => {
+  const response = await api.delete(`/admin/menu/${itemId}`);
+  return response.data;
+};
 
 export default api

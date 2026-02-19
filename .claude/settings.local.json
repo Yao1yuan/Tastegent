@@ -3,7 +3,13 @@
     "allow": [
       "Bash(npm:*)",
       "Bash(npx playwright install)",
-      "Bash(npx playwright test:*)"
+      "Bash(npx playwright test:*)",
+      "Bash(pip install:*)",
+      "Bash(kill:*)",
+      "Bash(icacls:*)",
+      "Bash(move:*)",
+      "Bash(python:*)",
+      "Bash(pytest)"
     ]
   }
 }

@@ -43,16 +43,7 @@ test.describe('Restaurant Agent E2E', () => {
     await expect(page.locator('button.upload-btn')).toBeVisible();
     await expect(page.locator('button.clear-btn')).toBeVisible();
 
-    // Click upload
-    // Note: This requires the backend to be running. If not, this test might fail or we should mock the backend.
-    // However, since this is E2E, we assume full stack is running.
-    // But for robustness in this environment, I'll mock the upload endpoint if the backend isn't up,
-    // but the instructions say backend is done.
-
-    // We will intercept the upload request to ensure we don't depend on actual backend if it fails,
-    // or we can test the real backend. Let's try real first, but if it fails, we know why.
-    // Actually, let's mock it for stability in this test environment.
-
+    // Mock the upload endpoint
     await page.route('**/upload', async route => {
       const json = {
         original_filename: 'react.svg',

@@ -9,3 +9,5 @@ google-generativeai
 python-multipart
 Pillow
 httpx
+python-jose[cryptography]
+passlib[bcrypt]

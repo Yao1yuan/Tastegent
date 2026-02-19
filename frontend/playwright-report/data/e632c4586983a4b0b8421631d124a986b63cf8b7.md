@@ -1,0 +1,57 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - heading "Restaurant AI Agent" [level=1] [ref=e5]
+  - generic [ref=e6]:
+    - generic [ref=e7]:
+      - heading "Menu" [level=2] [ref=e8]
+      - generic [ref=e9]:
+        - generic [ref=e11]:
+          - generic [ref=e12]:
+            - heading "Classic Burger" [level=3] [ref=e13]
+            - generic [ref=e14]: $12.99
+          - paragraph [ref=e15]: Juicy beef patty with lettuce, tomato, and secret sauce
+          - generic [ref=e16]:
+            - generic [ref=e17]: main
+            - generic [ref=e18]: beef
+        - generic [ref=e20]:
+          - generic [ref=e21]:
+            - heading "Margherita Pizza" [level=3] [ref=e22]
+            - generic [ref=e23]: $14.50
+          - paragraph [ref=e24]: Fresh basil, mozzarella, and tomato sauce
+          - generic [ref=e25]:
+            - generic [ref=e26]: main
+            - generic [ref=e27]: vegetarian
+        - generic [ref=e29]:
+          - generic [ref=e30]:
+            - heading "Caesar Salad" [level=3] [ref=e31]
+            - generic [ref=e32]: $9.99
+          - paragraph [ref=e33]: Romaine lettuce, parmesan, croutons, and caesar dressing
+          - generic [ref=e34]:
+            - generic [ref=e35]: starter
+            - generic [ref=e36]: vegetarian
+        - generic [ref=e38]:
+          - generic [ref=e39]:
+            - heading "Tiramisu" [level=3] [ref=e40]
+            - generic [ref=e41]: $7.50
+          - paragraph [ref=e42]: Coffee-flavored Italian dessert
+          - generic [ref=e44]: dessert
+        - generic [ref=e46]:
+          - generic [ref=e47]:
+            - heading "Cola" [level=3] [ref=e48]
+            - generic [ref=e49]: $2.50
+          - paragraph [ref=e50]: Refreshing carbonated beverage
+          - generic [ref=e52]: drink
+    - generic [ref=e53]:
+      - generic [ref=e54]:
+        - generic [ref=e56]: Hello! Welcome to our restaurant. How can I help you today?
+        - generic [ref=e58]: "I received your image: react.svg. Let me see what I can do with it."
+      - generic [ref=e59]:
+        - heading "Upload Image" [level=3] [ref=e60]
+        - generic [ref=e62] [cursor=pointer]: Choose an image
+      - generic [ref=e63]:
+        - textbox "Ask about the menu..." [ref=e64]
+        - button "Send" [disabled] [ref=e65]
+```
