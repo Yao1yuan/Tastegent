@@ -131,10 +131,12 @@ function AdminPage() {
               </div>
             </div>
             <div className="card-content">
-              <h3>{item.name}</h3>
+              <div className="menu-header">
+                <h3>{item.name}</h3>
+                <span className="price">${item.price.toFixed(2)}</span>
+              </div>
               <p>{item.description}</p>
               <div className="card-footer">
-                 <span className="price">${item.price.toFixed(2)}</span>
                  <div className="card-actions">
                     <button onClick={() => openModal('edit', item)} className="action-btn">Edit</button>
                     <button onClick={() => handleDeleteItem(item.id)} className="action-btn delete">Delete</button>

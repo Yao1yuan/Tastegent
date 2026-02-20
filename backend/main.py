@@ -107,10 +107,14 @@ async def get_current_active_user(token: str = Depends(oauth2_scheme)):
 # --- FastAPI App Initialization ---
 app = FastAPI()
 
+# Get allowed origins from environment variable
+allowed_origins_str = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173")
+allowed_origins = [origin.strip() for origin in allowed_origins_str.split(',')]
+
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

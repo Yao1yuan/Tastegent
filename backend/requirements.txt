@@ -11,3 +11,5 @@ Pillow
 httpx
 python-jose[cryptography]
 passlib[bcrypt]
+certifi
+gunicorn
