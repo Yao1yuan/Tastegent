@@ -1,10 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
 import '../App.css'
 import ImageUpload from '../components/ImageUpload'
-import { getMenu, chat, uploadFile } from '../services/api'
+import { getMenu, chat, uploadFile, API_URL } from '../services/api'
 
 // API_URL is now handled in api.js, but we might need it for image URL
-const API_BASE_URL = 'http://localhost:8000'
 
 function CustomerPage() {
   const [messages, setMessages] = useState([
@@ -113,7 +112,7 @@ function CustomerPage() {
                   </div>
                   {item.imageUrl && (
                     <img
-                      src={`${API_BASE_URL}${item.imageUrl}`}
+                      src={`${API_URL}${item.imageUrl}`}
                       alt={item.name}
                       className="menu-item-image"
                     />

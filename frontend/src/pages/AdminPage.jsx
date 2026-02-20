@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react';
-import api, { getMenu, uploadFile, createMenuItem, updateMenuItem, deleteMenuItem } from '../services/api';
+import api, { getMenu, uploadFile, createMenuItem, updateMenuItem, deleteMenuItem, API_URL } from '../services/api';
 import '../App.css';
 import ImageUpload from '../components/ImageUpload';
 import Modal from '../components/Modal'; // Import the Modal component
 
-const API_URL = 'http://localhost:8000'; // Keep for image src
 
 
 const initialItemState = {
