@@ -9,7 +9,8 @@
       "Bash(icacls:*)",
       "Bash(move:*)",
       "Bash(python:*)",
-      "Bash(pytest)"
+      "Bash(pytest)",
+      "Bash(npx tailwindcss:*)"
     ]
   }
 }

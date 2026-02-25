@@ -4,21 +4,15 @@
     "name": "Classic Burger",
     "description": "Juicy beef patty with lettuce, tomato, and secret sauce",
     "price": 12.99,
-    "tags": [
-      "main",
-      "beef"
-    ],
+    "tags": ["Mains", "Beef"],
     "imageUrl": "/uploads/90a7a99b-e395-44f4-9852-1fa48308d23b.jpg"
   },
   {
     "id": 2,
     "name": "Margherita Pizza",
     "description": "Fresh basil, mozzarella, and tomato sauce",
-    "price": 14.5,
-    "tags": [
-      "main",
-      "vegetarian"
-    ],
+    "price": 14.50,
+    "tags": ["Mains", "Vegetarian"],
     "imageUrl": "/uploads/fc7abe14-cdba-433a-a44d-75cdc984850f.jpg"
   },
   {
@@ -26,40 +20,23 @@
     "name": "Caesar Salad",
     "description": "Romaine lettuce, parmesan, croutons, and caesar dressing",
     "price": 9.99,
-    "tags": [
-      "starter",
-      "vegetarian"
-    ],
+    "tags": ["Starters", "Vegetarian"],
     "imageUrl": null
   },
   {
     "id": 4,
     "name": "Tiramisu",
     "description": "Coffee-flavored Italian dessert",
-    "price": 7.5,
-    "tags": [
-      "dessert"
-    ],
+    "price": 7.50,
+    "tags": ["Desserts"],
     "imageUrl": null
   },
   {
     "id": 5,
     "name": "Cola",
     "description": "Refreshing carbonated beverage",
-    "price": 2.5,
-    "tags": [
-      "drink"
-    ],
-    "imageUrl": null
-  },
-  {
-    "id": 6,
-    "name": "asdasd",
-    "description": "asdasd",
-    "price": 23123.0,
-    "tags": [
-      "asdasd"
-    ],
+    "price": 2.50,
+    "tags": ["Drinks"],
     "imageUrl": null
   }
 ]
