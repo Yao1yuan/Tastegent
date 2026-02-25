@@ -43,6 +43,24 @@
   - Requires `VITE_API_URL` env var set to Render backend URL.
   - Node dependencies managed in `frontend/package.json` (ensure `tailwindcss` is in devDependencies).
 
+### 5. Debugging Insight: Image Upload UI Not Updating
+- **Problem**: In `AdminPage.jsx`, after a successful image upload (backend logs show `POST /upload` 200 and `PUT /admin/menu/...` 200), the frontend UI does not display the new image.
+- **Root Cause**: The frontend was incorrectly calling the general-purpose `PUT /admin/menu/{item_id}` endpoint. This endpoint has complex validation for text fields and was not intended for simple image URL updates, leading to silent failures or incorrect data preservation.
+- **Solution**: The backend (`main.py`) provides a dedicated, simpler endpoint specifically for this purpose: `@app.put("/admin/menu/{item_id}/image")`. The frontend `handleImageUploadForMenuItem` function must use this dedicated endpoint.
+  ```javascript
+  // Correct pattern in AdminPage.jsx
+  const uploadResponse = await uploadFile(file);
+  const newImageUrl = uploadResponse.url;
+
+  // Use the DEDICATED endpoint, not the general updateMenuItem
+  await api.put(`/admin/menu/${itemId}/image`, {
+    imageUrl: newImageUrl
+  });
+
+  // Then, re-fetch the list
+  await fetchMenu(true);
+  ```
+
 ## Development Workflow
 1.  **Start Backend** (Local or Remote): Ensure `menu.json` exists.
 2.  **Start Frontend**: `npm run dev` (uses proxy).
