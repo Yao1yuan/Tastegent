@@ -98,34 +98,39 @@ function AdminPage() {
 
   const handleImageUploadForMenuItem = async (file, itemId) => {
     try {
-      // 1. Find the full menu item from the current state to get all existing data.
       const itemToUpdate = menu.find(item => item.id === itemId);
       if (!itemToUpdate) {
         throw new Error("Menu item not found to update.");
       }
 
-      // 2. Upload the file to get the new URL.
-      const { url: newImageUrl } = await uploadFile(file);
+      // 1. 打印一下返回值，确保你拿到了正确的图片地址
+      const uploadResponse = await uploadFile(file);
+      console.log("Upload response:", uploadResponse);
 
-      // 3. Create a payload with all existing data, plus the new image URL.
-      //    It's crucial that `tags` remains an array, as the backend expects.
+      // 兼容后端可能返回的不同字段名 (url 或者 imageUrl)
+      const newImageUrl = uploadResponse.url || uploadResponse.imageUrl || uploadResponse.path;
+
+      if (!newImageUrl) {
+          throw new Error("未能从服务器获取到图片URL");
+      }
+
       const payload = {
         name: itemToUpdate.name,
         description: itemToUpdate.description,
         price: itemToUpdate.price,
-        tags: itemToUpdate.tags, // Keep tags as an array
-        imageUrl: newImageUrl      // Add the new image URL
+        tags: itemToUpdate.tags,
+        imageUrl: newImageUrl  // 更新图片地址
       };
 
-      // 4. Use the existing update function with the complete and correct payload.
+      // 2. 发送更新请求
       await updateMenuItem(itemId, payload);
 
-      // 5. Refresh the menu to show the new image.
-      fetchMenu();
+      // 3. 关键修改：不要手动改 state，直接重新拉取最新列表！这样最稳妥。
+      await fetchMenu();
+
     } catch (error) {
       console.error('Error in image upload process:', error);
-      // Provide more specific feedback if possible, otherwise a generic message.
-      const errorMessage = error.response?.data?.detail || 'An error occurred during the image upload process.';
+      const errorMessage = error.response?.data?.detail || error.message || 'An error occurred during the image upload process.';
       alert(errorMessage);
     }
   };
@@ -144,7 +149,7 @@ function AdminPage() {
           <div key={item.id} className="menu-card">
             <div className="card-image-container">
               {item.imageUrl ? (
-                <img src={`${API_URL}${item.imageUrl}`} alt={item.name} className="card-image" />
+                <img src={`${API_URL}${item.imageUrl}?t=${new Date().getTime()}`} alt={item.name} className="card-image" />
               ) : (
                 <div className="no-image-placeholder">No Image</div>
               )}
