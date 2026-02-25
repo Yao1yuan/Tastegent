@@ -98,39 +98,30 @@ function AdminPage() {
 
   const handleImageUploadForMenuItem = async (file, itemId) => {
     try {
-      const itemToUpdate = menu.find(item => item.id === itemId);
-      if (!itemToUpdate) {
-        throw new Error("Menu item not found to update.");
-      }
-
-      // 1. 打印一下返回值，确保你拿到了正确的图片地址
+      // 1. 上传图片到 /upload 接口
       const uploadResponse = await uploadFile(file);
-      console.log("Upload response:", uploadResponse);
 
-      // 兼容后端可能返回的不同字段名 (url 或者 imageUrl)
-      const newImageUrl = uploadResponse.url || uploadResponse.imageUrl || uploadResponse.path;
+      // 根据你的后端逻辑，上传成功后返回的 JSON 里包含 "url" 字段
+      const newImageUrl = uploadResponse.url;
 
       if (!newImageUrl) {
-          throw new Error("未能从服务器获取到图片URL");
+        throw new Error("未能从服务器获取到图片URL");
       }
 
-      const payload = {
-        name: itemToUpdate.name,
-        description: itemToUpdate.description,
-        price: itemToUpdate.price,
-        tags: itemToUpdate.tags,
-        imageUrl: newImageUrl  // 更新图片地址
-      };
+      // 2. 💡 核心修复：绕过普通的 updateMenuItem
+      // 直接使用你后端专用的图片更新接口：PUT /admin/menu/{item_id}/image
+      // 注意：确保顶部 import api from '../services/api'; 引入了 api 实例
+      await api.put(`/admin/menu/${itemId}/image`, {
+        imageUrl: newImageUrl
+      });
 
-      // 2. 发送更新请求
-      await updateMenuItem(itemId, payload);
-
-      // 3. 关键修改：不要手动改 state，直接重新拉取最新列表！这样最稳妥。
+      // 3. 重新拉取菜单列表，由于你的后端每次压缩图片都会生成全新 UUID，
+      // 所以这里天然防缓存，直接 fetch 即可！
       await fetchMenu(true);
 
     } catch (error) {
       console.error('Error in image upload process:', error);
-      const errorMessage = error.response?.data?.detail || error.message || 'An error occurred during the image upload process.';
+      const errorMessage = error.response?.data?.detail || error.message || '图片上传更新失败';
       alert(errorMessage);
     }
   };
