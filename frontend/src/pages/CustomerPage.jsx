@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Send, Sparkles, Utensils, Wine, Leaf, Clock, Menu, X, ChevronDown, ChevronUp } from 'lucide-react';
 import { useTastegent } from '../hooks/useTastegent';
 import { cn } from '../lib/utils';
+import { API_URL } from '../services/api';
 
 // --- UI Components ---
 
@@ -71,12 +73,21 @@ const MenuCategory = ({ category, isExpanded, onToggle, onAskDish }) => (
     >
       <div className="px-5 pb-5 flex flex-col gap-4 border-t border-white/50 pt-4">
         {category.items.map((item) => (
-          <div key={item.id} className="group relative pl-3 border-l-2 border-transparent hover:border-blue-400 transition-all">
-            <div className="flex justify-between items-start mb-1">
-              <h3 className="font-medium text-slate-800 text-sm sm:text-base">{item.name}</h3>
-              <span className="font-semibold text-blue-600 text-sm">${item.price.toFixed(2)}</span>
+          <div key={item.id} className="group relative">
+            <div className="flex gap-4">
+              <div className="flex-1">
+                <div className="flex justify-between items-start mb-1">
+                  <h3 className="font-medium text-slate-800 text-sm sm:text-base pr-4">{item.name}</h3>
+                  <span className="font-semibold text-blue-600 text-sm whitespace-nowrap">${item.price.toFixed(2)}</span>
+                </div>
+                <p className="text-xs sm:text-sm text-slate-500 pr-12 leading-relaxed">{item.description}</p>
+              </div>
+              {item.imageUrl && (
+                <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-lg overflow-hidden shrink-0">
+                  <img src={`${API_URL}${item.imageUrl}`} alt={item.name} className="w-full h-full object-cover" />
+                </div>
+              )}
             </div>
-            <p className="text-xs sm:text-sm text-slate-500 pr-12 leading-relaxed">{item.description}</p>
             <button
               onClick={() => onAskDish(item.name)}
               className="absolute right-0 top-0 p-1.5 rounded-full text-blue-400 hover:text-white hover:bg-blue-500 transition-all opacity-0 group-hover:opacity-100 shadow-sm"
@@ -131,17 +142,18 @@ export default function CustomerPage() {
   ];
 
   return (
-    <div className="relative min-h-screen bg-[#f8fafc] text-slate-800 overflow-hidden font-sans selection:bg-blue-500/20">
+    <div className="relative flex flex-col min-h-screen bg-[#f8fafc] text-slate-800 font-sans selection:bg-blue-500/20">
       {/* Background Ambience */}
       <div className="absolute top-[-10%] left-[-10%] w-[50vw] h-[50vw] rounded-full bg-radial-gradient from-blue-400/30 to-transparent blur-[80px] animate-aurora pointer-events-none" />
       <div className="absolute bottom-[-20%] right-[-10%] w-[60vw] h-[60vw] rounded-full bg-radial-gradient from-blue-500/20 to-transparent blur-[80px] animate-aurora-reverse pointer-events-none" />
 
       {/* Main Content */}
-      <div className="relative z-10 flex flex-col items-center justify-center h-screen w-full p-0 sm:p-6 md:p-10 overflow-hidden">
-        <div className="w-full h-full sm:h-[85vh] sm:rounded-3xl flex flex-col overflow-hidden relative bg-white/60 backdrop-blur-xl border-0 sm:border border-white/80 sm:shadow-2xl">
+     {/* Main Content */}
+      <div className="relative z-10 flex flex-col items-center min-h-screen w-full p-0 sm:p-6 md:p-10">
+        <div className="w-full min-h-screen sm:rounded-3xl flex flex-col relative bg-white/60 backdrop-blur-xl border-0 sm:border border-white/80 sm:shadow-2xl">
 
           {/* Header */}
-          <header className="px-6 sm:px-8 py-5 sm:py-6 border-b border-white/60 flex items-center justify-between z-20 bg-white/40 backdrop-blur-md">
+          <header className="sticky top-0 px-6 sm:px-8 py-5 sm:py-6 border-b border-white/60 flex items-center justify-between z-50 bg-white/80 backdrop-blur-md shrink-0">
             <div className="flex items-center gap-3 sm:gap-4">
               <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/30 shrink-0">
                 <Utensils className="text-white w-5 h-5 sm:w-6 sm:h-6" />
@@ -155,7 +167,7 @@ export default function CustomerPage() {
             </div>
             <button
               onClick={() => setIsMenuOpen(true)}
-              className="flex items-center gap-2 px-3 py-2 sm:px-4 sm:py-2 rounded-full bg-white/50 border border-white hover:bg-white/80 hover:shadow-md hover:text-blue-600 transition-all duration-300 text-slate-600 shadow-sm"
+              className="flex items-center gap-2 px-3 py-2 sm:px-4 sm:py-2 rounded-full bg-white/50 border border-white hover:bg-white/80 hover:shadow-md hover:text-blue-600 transition-all duration-300 text-slate-600 shadow-sm shrink-0"
             >
               <Menu size={18} />
               <span className="text-xs sm:text-sm font-medium tracking-widest">MENU</span>
@@ -163,7 +175,7 @@ export default function CustomerPage() {
           </header>
 
           {/* Chat Area */}
-          <div className="flex-1 overflow-y-auto p-6 sm:p-8 flex flex-col gap-6 scrollbar-hide">
+          <div className="flex-1 min-h-0 p-6 sm:p-8 flex flex-col gap-6">
             {messages.map((msg, index) => (
               <MessageBubble key={index} role={msg.role} content={msg.content} />
             ))}
@@ -172,7 +184,7 @@ export default function CustomerPage() {
           </div>
 
           {/* Input Area */}
-          <div className="p-4 sm:p-6 bg-gradient-to-t from-[#f8fafc]/90 to-transparent pt-10 border-t border-white/60">
+          <div className="sticky bottom-0 z-50 px-4 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:p-6 bg-white/90 backdrop-blur-md border-t border-white/60 shrink-0">
             <div className="flex flex-wrap gap-3 mb-4">
               {quickActions.map((action, idx) => (
                 <QuickActionButton
@@ -216,58 +228,51 @@ export default function CustomerPage() {
       </div>
 
       {/* Menu Drawer */}
-      <div
-        className={cn(
-          "fixed inset-0 z-50 transition-all duration-500",
-          isMenuOpen ? "visible" : "invisible"
-        )}
-      >
-        <div
-          className={cn(
-            "absolute inset-0 bg-slate-900/20 backdrop-blur-sm transition-opacity duration-500",
-            isMenuOpen ? "opacity-100" : "opacity-0"
-          )}
-          onClick={() => setIsMenuOpen(false)}
-        />
-        <div
-          className={cn(
-            "absolute top-0 right-0 bottom-0 w-full sm:w-[400px] bg-white/80 backdrop-blur-2xl border-l border-white shadow-2xl flex flex-col transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]",
-            isMenuOpen ? "translate-x-0" : "translate-x-full"
-          )}
-        >
-          <div className="px-6 py-6 border-b border-white flex justify-between items-center bg-white/40">
-            <div>
-              <h2 className="text-xl font-semibold tracking-widest text-slate-800">MENU</h2>
-              <p className="text-xs text-slate-500 tracking-wider mt-1 uppercase">Tasting Selection</p>
-            </div>
-            <button
-              onClick={() => setIsMenuOpen(false)}
-              className="p-2 rounded-full bg-white/50 border border-white hover:bg-slate-100 hover:text-blue-600 transition-all shadow-sm"
-            >
-              <X size={20} />
-            </button>
-          </div>
+      {isMenuOpen && createPortal(
+        <div className="fixed inset-0 z-[9999] h-[100dvh] w-screen overflow-hidden">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-slate-900/20 backdrop-blur-sm animate-in fade-in duration-300"
+            onClick={() => setIsMenuOpen(false)}
+          />
 
-          <div className="flex-1 overflow-y-auto p-4 sm:p-6 scrollbar-hide flex flex-col gap-3">
-            {menuCategories.length === 0 ? (
-                <div className="text-center text-slate-500 mt-10 animate-pulse">Loading menu...</div>
-            ) : (
-                menuCategories.map(category => (
-                  <MenuCategory
-                    key={category.id}
-                    category={category}
-                    isExpanded={expandedCategory === category.id}
-                    onToggle={() => setExpandedCategory(expandedCategory === category.id ? null : category.id)}
-                    onAskDish={handleAskDish}
-                  />
-                ))
-            )}
+          {/* Drawer Panel */}
+          <div className="absolute top-0 right-0 bottom-0 w-full sm:w-[400px] bg-white/90 backdrop-blur-xl border-l border-white shadow-2xl flex flex-col h-full animate-in slide-in-from-right duration-300">
+            <div className="px-6 py-6 border-b border-white flex justify-between items-center bg-white/50 shrink-0">
+              <div>
+                <h2 className="text-xl font-semibold tracking-widest text-slate-800">MENU</h2>
+                <p className="text-xs text-slate-500 tracking-wider mt-1 uppercase">Tasting Selection</p>
+              </div>
+              <button
+                onClick={() => setIsMenuOpen(false)}
+                className="p-2 rounded-full bg-white/50 border border-white hover:bg-slate-100 hover:text-blue-600 transition-all shadow-sm"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 scrollbar-hide flex flex-col gap-3">
+              {menuCategories.length === 0 ? (
+                  <div className="text-center text-slate-500 mt-10 animate-pulse">Loading menu...</div>
+              ) : (
+                  menuCategories.map(category => (
+                    <MenuCategory
+                      key={category.id}
+                      category={category}
+                      isExpanded={expandedCategory === category.id}
+                      onToggle={() => setExpandedCategory(expandedCategory === category.id ? null : category.id)}
+                      onAskDish={handleAskDish}
+                    />
+                  ))
+              )}
+            </div>
+            <div className="p-6 bg-white/50 border-t border-white text-center text-xs text-slate-500 shrink-0">
+              * Menu items subject to seasonal availability.
+            </div>
           </div>
-          <div className="p-6 bg-white/40 border-t border-white text-center text-xs text-slate-500">
-            * Menu items subject to seasonal availability.
-          </div>
-        </div>
-      </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }

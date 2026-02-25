@@ -10,7 +10,8 @@
       "Bash(move:*)",
       "Bash(python:*)",
       "Bash(pytest)",
-      "Bash(npx tailwindcss:*)"
+      "Bash(npx tailwindcss:*)",
+      "Bash(git add:*)"
     ]
   }
 }

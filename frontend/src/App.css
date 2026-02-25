@@ -182,3 +182,8 @@ body {
 .btn-secondary:hover {
   background-color: #5a6268;
 }
+
+html, body {
+  background-color: #f8fafc;
+  height: 100%;
+}

@@ -99,7 +99,7 @@ function AdminPage() {
   const handleImageUploadForMenuItem = async (file, itemId) => {
     try {
       const { url: imageUrl } = await uploadFile(file);
-      await api.put(`/admin/menu/${itemId}/image`, { imageUrl });
+      await updateMenuItem(itemId, { imageUrl });
       fetchMenu();
     } catch (error) {
       console.error('Error in image upload process:', error);
