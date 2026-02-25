@@ -98,8 +98,27 @@ function AdminPage() {
 
   const handleImageUploadForMenuItem = async (file, itemId) => {
     try {
-      const { url: imageUrl } = await uploadFile(file);
-      await updateMenuItem(itemId, { imageUrl });
+      // Find the full menu item from the current state
+      const itemToUpdate = menu.find(item => item.id === itemId);
+      if (!itemToUpdate) {
+        throw new Error("Menu item not found");
+      }
+
+      // Upload the file to get the new URL
+      const { url: newImageUrl } = await uploadFile(file);
+
+      // Prepare the full payload for the update
+      const { id, ...updateData } = itemToUpdate;
+      const payload = {
+        ...updateData,
+        tags: itemToUpdate.tags.join(','), // Convert tags array back to string for the form
+        imageUrl: newImageUrl
+      };
+
+      // Use the existing update function with the full payload
+      await updateMenuItem(itemId, payload);
+
+      // Refresh the menu to show the new image
       fetchMenu();
     } catch (error) {
       console.error('Error in image upload process:', error);
