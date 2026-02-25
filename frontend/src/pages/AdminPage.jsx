@@ -17,10 +17,14 @@ function AdminPage() {
   const [menu, setMenu] = useState([]);
   const [error, setError] = useState('');
 
-  // Modal state
+  // Modal state for text editing
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState('create'); // 'create' or 'edit'
   const [currentItem, setCurrentItem] = useState(initialItemState);
+
+  // --- ARCHITECTURAL FIX: State for single image upload modal ---
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [uploadingItemId, setUploadingItemId] = useState(null);
 
   const fetchMenu = async (bustCache = false) => {
     try {
@@ -52,6 +56,17 @@ function AdminPage() {
     setError('');
   };
 
+  // --- Functions to control the new upload modal ---
+  const openUploadModal = (itemId) => {
+    setUploadingItemId(itemId);
+    setIsUploadModalOpen(true);
+  };
+
+  const closeUploadModal = () => {
+    setUploadingItemId(null);
+    setIsUploadModalOpen(false);
+  };
+
   const handleFormChange = (e) => {
     const { name, value } = e.target;
     setCurrentItem(prev => ({ ...prev, [name]: value }));
@@ -72,7 +87,7 @@ function AdminPage() {
       if (modalMode === 'create') {
         await createMenuItem(payload);
       } else {
-        const { id, imageUrl, ...updateData } = payload;
+        const { id, ...updateData } = payload;
         await updateMenuItem(id, updateData);
       }
 
@@ -126,6 +141,14 @@ function AdminPage() {
     }
   };
 
+  // --- New handler for the single modal upload ---
+  const handleImageUploadAndClose = async (file) => {
+    if (uploadingItemId) {
+      await handleImageUploadForMenuItem(file, uploadingItemId);
+    }
+    closeUploadModal();
+  };
+
   return (
     <div className="admin-page container">
       <header className="admin-header">
@@ -145,7 +168,10 @@ function AdminPage() {
                 <div className="no-image-placeholder">No Image</div>
               )}
                <div className="image-upload-overlay">
-                  <ImageUpload onUpload={(file) => handleImageUploadForMenuItem(file, item.id)} />
+                  {/* --- ARCHITECTURAL FIX: Change from component to simple button trigger --- */}
+                  <button onClick={() => openUploadModal(item.id)} className="upload-trigger-btn">
+                    Update Image
+                  </button>
               </div>
             </div>
             <div className="card-content">
@@ -165,6 +191,7 @@ function AdminPage() {
         ))}
       </div>
 
+      {/* Modal for Text Editing */}
       <Modal show={isModalOpen} onClose={closeModal} title={modalMode === 'create' ? 'Add New Item' : 'Edit Item'}>
         <form onSubmit={handleSubmit} className="modal-form">
           <input name="name" value={currentItem.name} onChange={handleFormChange} placeholder="Name" required />
@@ -177,6 +204,11 @@ function AdminPage() {
           </div>
         </form>
         {error && <p className="error-message">{error}</p>}
+      </Modal>
+
+      {/* --- ARCHITECTURAL FIX: Single, shared modal for all image uploads --- */}
+      <Modal show={isUploadModalOpen} onClose={closeUploadModal} title="Upload New Image">
+        {uploadingItemId && <ImageUpload onUpload={handleImageUploadAndClose} />}
       </Modal>
     </div>
   );
