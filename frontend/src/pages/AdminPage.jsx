@@ -98,31 +98,35 @@ function AdminPage() {
 
   const handleImageUploadForMenuItem = async (file, itemId) => {
     try {
-      // Find the full menu item from the current state
+      // 1. Find the full menu item from the current state to get all existing data.
       const itemToUpdate = menu.find(item => item.id === itemId);
       if (!itemToUpdate) {
-        throw new Error("Menu item not found");
+        throw new Error("Menu item not found to update.");
       }
 
-      // Upload the file to get the new URL
+      // 2. Upload the file to get the new URL.
       const { url: newImageUrl } = await uploadFile(file);
 
-      // Prepare the full payload for the update
-      const { id, ...updateData } = itemToUpdate;
+      // 3. Create a payload with all existing data, plus the new image URL.
+      //    It's crucial that `tags` remains an array, as the backend expects.
       const payload = {
-        ...updateData,
-        tags: itemToUpdate.tags.join(','), // Convert tags array back to string for the form
-        imageUrl: newImageUrl
+        name: itemToUpdate.name,
+        description: itemToUpdate.description,
+        price: itemToUpdate.price,
+        tags: itemToUpdate.tags, // Keep tags as an array
+        imageUrl: newImageUrl      // Add the new image URL
       };
 
-      // Use the existing update function with the full payload
+      // 4. Use the existing update function with the complete and correct payload.
       await updateMenuItem(itemId, payload);
 
-      // Refresh the menu to show the new image
+      // 5. Refresh the menu to show the new image.
       fetchMenu();
     } catch (error) {
       console.error('Error in image upload process:', error);
-      alert('An error occurred during the image upload process.');
+      // Provide more specific feedback if possible, otherwise a generic message.
+      const errorMessage = error.response?.data?.detail || 'An error occurred during the image upload process.';
+      alert(errorMessage);
     }
   };
 
