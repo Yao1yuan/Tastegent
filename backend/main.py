@@ -222,15 +222,22 @@ async def create_menu_item(item: MenuItemCreate):
     return new_item
 
 
+class MenuItemUpdate(BaseModel):
+    name: str
+    description: str
+    price: float
+    tags: List[str]
+    imageUrl: Optional[str] = None
+
 @app.put("/admin/menu/{item_id}", response_model=MenuItem, dependencies=[Depends(get_current_active_user)])
-async def update_menu_item(item_id: int, item_update: MenuItemCreate):
+async def update_menu_item(item_id: int, item_update: MenuItemUpdate):
     global menu_data
     item_found = False
     updated_item = None
     for i, item in enumerate(menu_data):
         if item["id"] == item_id:
-            # Preserve existing imageUrl
-            image_url = item.get("imageUrl")
+            # Preserve existing imageUrl if not provided in the update
+            image_url = item_update.imageUrl if item_update.imageUrl is not None else item.get("imageUrl")
             updated_item_data = item_update.model_dump()
             updated_item_data["id"] = item_id
             updated_item_data["imageUrl"] = image_url

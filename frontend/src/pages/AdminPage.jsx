@@ -22,9 +22,9 @@ function AdminPage() {
   const [modalMode, setModalMode] = useState('create'); // 'create' or 'edit'
   const [currentItem, setCurrentItem] = useState(initialItemState);
 
-  const fetchMenu = async () => {
+  const fetchMenu = async (bustCache = false) => {
     try {
-      const data = await getMenu();
+      const data = await getMenu(bustCache);
       setMenu(data);
     } catch (error) {
       console.error('Error fetching menu:', error);
@@ -126,7 +126,7 @@ function AdminPage() {
       await updateMenuItem(itemId, payload);
 
       // 3. 关键修改：不要手动改 state，直接重新拉取最新列表！这样最稳妥。
-      await fetchMenu();
+      await fetchMenu(true);
 
     } catch (error) {
       console.error('Error in image upload process:', error);

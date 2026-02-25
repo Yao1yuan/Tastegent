@@ -17,10 +17,11 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-export const getMenu = async () => {
-  const response = await api.get('/menu')
-  return response.data
-}
+export const getMenu = async (bustCache = false) => {
+  const url = bustCache ? `/menu?_=${Date.now()}` : '/menu';
+  const response = await api.get(url);
+  return response.data;
+};
 
 export const login = async (username, password) => {
   const params = new URLSearchParams();
