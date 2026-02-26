@@ -5,8 +5,7 @@ pydantic
 anthropic
 openai
 
-# 建议替换为最新推荐库，解决那个长长的 FutureWarning
-google-genai  
+google-generativeai  
 
 python-multipart
 Pillow
