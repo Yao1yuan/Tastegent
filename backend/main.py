@@ -13,7 +13,7 @@ from dotenv import load_dotenv
 from PIL import Image
 from sqlalchemy.orm import Session
 
-# Import database-related components from our new files
+# Import database-related components
 import models, database
 
 # --- 1. Basic Setup & Path Configuration ---
@@ -24,21 +24,21 @@ load_dotenv()
 IS_RENDER_ENV = 'RENDER' in os.environ
 DATA_DIR = Path("/var/data") if IS_RENDER_ENV else Path(__file__).parent.resolve()
 UPLOAD_DIR = DATA_DIR / "uploads"
-logger.info(f"Uploads directory is configured at: {UPLOAD_DIR}")
+
+# FIX: Create the directory immediately, before FastAPI initializes and mounts it.
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+logger.info(f"Uploads directory is configured and verified at: {UPLOAD_DIR}")
+
 
 # --- 2. FastAPI App Initialization ---
 app = FastAPI(title="Tastegent API with PostgreSQL")
 
-# --- 3. Startup Event: THE ONLY CORRECT PLACE FOR RUNTIME INITIALIZATION ---
+# --- 3. Startup Event ---
 @app.on_event("startup")
 def startup_event():
     logger.info("Application startup...")
-    logger.info("Ensuring upload directory exists...")
-    # This now runs at the correct time, when the disk is mounted.
-    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-    logger.info("Upload directory is ready.")
+    # Directory creation removed from here
     logger.info("Initializing database tables...")
-    # This ensures tables are created after the database connection is established.
     models.Base.metadata.create_all(bind=database.engine)
     logger.info("Database tables are ready.")
     logger.info("Startup complete.")
@@ -51,7 +51,10 @@ app.add_middleware(
     allow_origins=[origin.strip() for origin in allowed_origins],
     allow_credentials=True, methods=["*"], headers=["*"],
 )
-app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
+
+# This will now succeed because the directory was created in step 1
+# We keep check_dir=False as a good practice, but the core issue is now solved.
+app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR, check_dir=False), name="uploads")
 
 # --- 5. Pydantic Models ---
 class MenuItemBase(BaseModel):
