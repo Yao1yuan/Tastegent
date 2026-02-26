@@ -8,9 +8,14 @@ const api = axios.create({
 })
 
 api.interceptors.request.use((config) => {
-  // TODO: Storing JWT in localStorage is vulnerable to XSS.
-  // In a production environment, this should be moved to an httpOnly cookie.
-  const token = localStorage.getItem('token');
+  // 🛡️ 增加 try...catch 防御！防止浏览器禁用 storage 导致整个应用崩溃
+  let token = null;
+  try {
+    token = localStorage.getItem('token');
+  } catch (error) {
+    console.warn('Local storage access denied by browser. Proceeding without token.', error);
+  }
+
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -71,4 +76,4 @@ export const deleteMenuItem = async (itemId) => {
   return response.data;
 };
 
-export default api
+export default api;
