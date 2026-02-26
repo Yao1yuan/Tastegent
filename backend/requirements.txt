@@ -5,12 +5,17 @@ pydantic
 anthropic
 openai
 
-google-generativeai
+# 建议替换为最新推荐库，解决那个长长的 FutureWarning
+google-genai  
+
 python-multipart
 Pillow
 httpx
-python-jose
-passlib
+python-jose[cryptography]
+
+# 关键修复组合
 bcrypt==3.2.0
+passlib[bcrypt]
+
 certifi
 gunicorn
