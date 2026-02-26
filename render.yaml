@@ -1,0 +1,30 @@
+# render.yaml
+# This file configures the deployment of the services on Render.
+
+services:
+  # Backend Service Configuration
+  - type: web
+    name: tastegent-backend
+    runtime: python
+    # The root of the backend code
+    rootDir: ./backend
+    # Command to install dependencies
+    buildCommand: "pip install -r requirements.txt"
+    # Command to start the server
+    startCommand: "uvicorn main:app --host 0.0.0.0 --port 8000"
+    # Health check to ensure the service is running
+    healthCheckPath: "/"
+    # Environment variables can be added here
+    # envVars:
+    #   - key: PYTHON_VERSION
+    #     value: 3.10.0
+
+    # Persistent Disk Configuration
+    # This is the crucial part for storing uploads and menu.json permanently.
+    disks:
+      - name: data-disk # A descriptive name for the disk
+        # The path where the disk will be mounted in the running container.
+        # All files written here will persist across restarts and deploys.
+        mountPath: /var/data
+        # The size of the disk in GB. 1GB is the smallest available.
+        sizeGB: 1

@@ -10,23 +10,52 @@ import shutil
 import google.generativeai as genai
 import io
 from PIL import Image
-import os
 import uuid
 from pathlib import Path
 import logging
 from dotenv import load_dotenv
 from passlib.context import CryptContext
-from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from datetime import datetime, timedelta
-import os
 import certifi
-# 同样放在 main.py 的顶部
+
+# Set SSL certificate path for gRPC
 os.environ['GRPC_DEFAULT_SSL_ROOTS_FILE_PATH'] = certifi.where()
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-# Load environment variables
 load_dotenv()
+
+# --- Environment-aware Path Configuration ---
+# Check if running in Render environment
+IS_RENDER_ENV = 'RENDER' in os.environ
+# Define base data directory based on environment
+if IS_RENDER_ENV:
+    # On Render, use the mounted persistent disk path
+    DATA_DIR = Path("/var/data")
+    logger.info(f"Running in Render environment. Data directory set to: {DATA_DIR}")
+else:
+    # Locally, use a relative path from the script location
+    DATA_DIR = Path(".")
+    logger.info(f"Running in local environment. Data directory set to: {DATA_DIR}")
+
+# Define specific paths for uploads and menu data
+UPLOAD_DIR = DATA_DIR / "uploads"
+MENU_FILE_PATH = DATA_DIR / "menu.json"
+
+# --- Application Startup: Ensure directories and files exist ---
+@app.on_event("startup")
+def startup_event():
+    logger.info("Application startup: Initializing data directories and files.")
+    # Create the base data directory if it doesn't exist
+    DATA_DIR.mkdir(exist_ok=True)
+    # Create the uploads subdirectory if it doesn't exist
+    UPLOAD_DIR.mkdir(exist_ok=True)
+    # Create an empty menu.json if it doesn't exist, to prevent load errors
+    if not MENU_FILE_PATH.exists():
+        logger.warning(f"{MENU_FILE_PATH} not found. Creating an empty menu file.")
+        with open(MENU_FILE_PATH, "w") as f:
+            json.dump([], f)
 
 # --- JWT and Password Hashing Configuration ---
 SECRET_KEY = os.getenv("SECRET_KEY")
@@ -120,10 +149,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Mount uploads directory
-UPLOAD_DIR = Path("uploads")
-UPLOAD_DIR.mkdir(exist_ok=True)
-app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+# Serve static files from the persistent UPLOAD_DIR
+app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 
 # --- Authentication Endpoint ---
 @app.post("/token", response_model=Token)
@@ -167,13 +194,24 @@ class ChatRequest(BaseModel):
     messages: List[Message]
     store_id: Optional[str] = None
 
-# --- Load Menu Data ---
-try:
-    with open("menu.json", "r") as f:
-        menu_data = json.load(f)
-except FileNotFoundError:
-    logger.warning("menu.json not found, using empty menu")
-    menu_data = []
+# --- Data Loading and Saving Functions ---
+def load_menu_data():
+    """Reads menu data from the persistent JSON file."""
+    try:
+        with open(MENU_FILE_PATH, "r") as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        logger.warning(f"{MENU_FILE_PATH} not found or invalid. Starting with an empty menu.")
+        return []
+
+def save_menu_data(data):
+    """Saves menu data to the persistent JSON file."""
+    try:
+        with open(MENU_FILE_PATH, "w") as f:
+            json.dump(data, f, indent=2)
+    except Exception as e:
+        # In a real app, you might want more sophisticated error handling or rollback.
+        raise HTTPException(status_code=500, detail=f"Failed to write to menu file: {e}")
 
 # --- API Endpoints ---
 @app.get("/")
@@ -182,11 +220,12 @@ async def root():
 
 @app.get("/menu")
 async def get_menu():
-    return menu_data
+    """Returns the current menu, always reading from the file for consistency."""
+    return load_menu_data()
 
 @app.put("/admin/menu/{item_id}/image", dependencies=[Depends(get_current_active_user)])
 async def update_menu_item_image(item_id: int, payload: ImageUrlPayload):
-    global menu_data
+    menu_data = load_menu_data() # Load fresh data before modification
     item_found = False
     for item in menu_data:
         if item["id"] == item_id:
@@ -195,30 +234,18 @@ async def update_menu_item_image(item_id: int, payload: ImageUrlPayload):
             break
     if not item_found:
         raise HTTPException(status_code=404, detail="Menu item not found")
-    try:
-        with open("menu.json", "w") as f:
-            json.dump(menu_data, f, indent=2)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to write to menu.json: {e}")
+    save_menu_data(menu_data) # Save changes back to the file
     return {"message": f"Successfully updated image for menu item {item_id}"}
 
 
 @app.post("/admin/menu", response_model=MenuItem, dependencies=[Depends(get_current_active_user)])
 async def create_menu_item(item: MenuItemCreate):
-    global menu_data
-    # Determine the next ID
-    new_id = max(i["id"] for i in menu_data) + 1 if menu_data else 1
-
+    menu_data = load_menu_data()
+    # Determine the next ID safely
+    new_id = max((i["id"] for i in menu_data), default=0) + 1
     new_item = MenuItem(id=new_id, **item.model_dump(), imageUrl=None)
-
     menu_data.append(new_item.model_dump())
-
-    try:
-        with open("menu.json", "w") as f:
-            json.dump(menu_data, f, indent=2)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to write to menu.json: {e}")
-
+    save_menu_data(menu_data)
     return new_item
 
 
@@ -231,56 +258,41 @@ class MenuItemUpdate(BaseModel):
 
 @app.put("/admin/menu/{item_id}", response_model=MenuItem, dependencies=[Depends(get_current_active_user)])
 async def update_menu_item(item_id: int, item_update: MenuItemUpdate):
-    global menu_data
+    menu_data = load_menu_data()
     item_found = False
-    updated_item = None
+    updated_item_model = None
     for i, item in enumerate(menu_data):
         if item["id"] == item_id:
-            # Preserve existing imageUrl if not provided in the update
-            image_url = item_update.imageUrl if item_update.imageUrl is not None else item.get("imageUrl")
-            updated_item_data = item_update.model_dump()
-            updated_item_data["id"] = item_id
-            updated_item_data["imageUrl"] = image_url
+            # Update existing item data with new data
+            current_item_data = menu_data[i]
+            updated_data = item_update.model_dump()
 
-            updated_item = MenuItem(**updated_item_data)
-            menu_data[i] = updated_item.model_dump()
+            # Preserve original imageUrl if not provided in the update
+            if updated_data.get("imageUrl") is None:
+                updated_data["imageUrl"] = current_item_data.get("imageUrl")
+
+            final_item_data = {**current_item_data, **updated_data}
+            updated_item_model = MenuItem(**final_item_data)
+            menu_data[i] = updated_item_model.model_dump()
             item_found = True
             break
 
     if not item_found:
         raise HTTPException(status_code=404, detail="Menu item not found")
 
-    try:
-        with open("menu.json", "w") as f:
-            json.dump(menu_data, f, indent=2)
-    except Exception as e:
-        # Rollback in-memory change if file write fails
-        # (A simple rollback, more complex logic might be needed for production)
-        fetch_menu_data()
-        raise HTTPException(status_code=500, detail=f"Failed to write to menu.json: {e}")
-
-    return updated_item
+    save_menu_data(menu_data)
+    return updated_item_model
 
 @app.delete("/admin/menu/{item_id}", dependencies=[Depends(get_current_active_user)])
 async def delete_menu_item(item_id: int):
-    global menu_data
-    original_menu_data = list(menu_data)
-
-    item_to_delete = next((item for item in menu_data if item["id"] == item_id), None)
-
-    if not item_to_delete:
-        raise HTTPException(status_code=404, detail="Menu item not found")
-
+    menu_data = load_menu_data()
+    original_length = len(menu_data)
     menu_data = [item for item in menu_data if item["id"] != item_id]
 
-    try:
-        with open("menu.json", "w") as f:
-            json.dump(menu_data, f, indent=2)
-    except Exception as e:
-        # Rollback
-        menu_data = original_menu_data
-        raise HTTPException(status_code=500, detail=f"Failed to write to menu.json: {e}")
+    if len(menu_data) == original_length:
+        raise HTTPException(status_code=404, detail="Menu item not found")
 
+    save_menu_data(menu_data)
     return {"message": f"Successfully deleted menu item {item_id}"}
 
 

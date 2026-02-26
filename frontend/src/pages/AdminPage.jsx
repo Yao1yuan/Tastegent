@@ -25,10 +25,12 @@ function AdminPage() {
   // --- ARCHITECTURAL FIX: State for single image upload modal ---
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [uploadingItemId, setUploadingItemId] = useState(null);
+  const [isUploading, setIsUploading] = useState(null); // NEW: Track uploading state by item ID
 
   const fetchMenu = async (bustCache = false) => {
     try {
-      const data = await getMenu(bustCache);
+      // FORCE CACHE BUSTING: Always add a timestamp to ensure fresh data
+      const data = await getMenu(true);
       setMenu(data);
     } catch (error) {
       console.error('Error fetching menu:', error);
@@ -88,6 +90,7 @@ function AdminPage() {
         await createMenuItem(payload);
       } else {
         const { id, ...updateData } = payload;
+        // BUG FIX from MEMORY.md: Ensure this uses the general update, not the image one.
         await updateMenuItem(id, updateData);
       }
 
@@ -112,32 +115,30 @@ function AdminPage() {
   };
 
   const handleImageUploadForMenuItem = async (file, itemId) => {
+    setIsUploading(itemId); // START loading state
     try {
-      // 1. 上传图片到 /upload 接口
+      // 1. Upload image to /upload endpoint
       const uploadResponse = await uploadFile(file);
-
-      // 根据你的后端逻辑，上传成功后返回的 JSON 里包含 "url" 字段
       const newImageUrl = uploadResponse.url;
 
       if (!newImageUrl) {
-        throw new Error("未能从服务器获取到图片URL");
+        throw new Error("Failed to get image URL from server");
       }
 
-      // 2. 💡 核心修复：绕过普通的 updateMenuItem
-      // 直接使用你后端专用的图片更新接口：PUT /admin/menu/{item_id}/image
-      // 注意：确保顶部 import api from '../services/api'; 引入了 api 实例
+      // 2. Use the DEDICATED endpoint to update the image URL
       await api.put(`/admin/menu/${itemId}/image`, {
         imageUrl: newImageUrl
       });
 
-      // 3. 重新拉取菜单列表，由于你的后端每次压缩图片都会生成全新 UUID，
-      // 所以这里天然防缓存，直接 fetch 即可！
+      // 3. Refetch the menu to get updated data
       await fetchMenu(true);
 
     } catch (error) {
       console.error('Error in image upload process:', error);
-      const errorMessage = error.response?.data?.detail || error.message || '图片上传更新失败';
+      const errorMessage = error.response?.data?.detail || error.message || 'Image upload and update failed';
       alert(errorMessage);
+    } finally {
+      setIsUploading(null); // END loading state
     }
   };
 
@@ -162,13 +163,19 @@ function AdminPage() {
         {menu.map(item => (
           <div key={item.id} className="menu-card">
             <div className="card-image-container">
+              {isUploading === item.id && (
+                <div className="uploading-overlay">
+                  <div className="spinner"></div>
+                  <p>Uploading...</p>
+                </div>
+              )}
               {item.imageUrl ? (
-                <img src={`${API_URL}${item.imageUrl}?t=${new Date().getTime()}`} alt={item.name} className="card-image" />
+                // RELIABLE CACHE BUSTING: Use a unique key for the image
+                <img key={item.imageUrl} src={`${API_URL}${item.imageUrl}`} alt={item.name} className="card-image" />
               ) : (
                 <div className="no-image-placeholder">No Image</div>
               )}
                <div className="image-upload-overlay">
-                  {/* --- ARCHITECTURAL FIX: Change from component to simple button trigger --- */}
                   <button onClick={() => openUploadModal(item.id)} className="upload-trigger-btn">
                     Update Image
                   </button>
