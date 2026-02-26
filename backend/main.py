@@ -47,6 +47,9 @@ MENU_FILE_PATH = DATA_DIR / "menu.json"
 app = FastAPI()
 
 # --- Application Startup: Ensure directories and files exist ---
+# --- FastAPI App Initialization ---
+app = FastAPI()
+
 @app.on_event("startup")
 def startup_event():
     logger.info("Application startup: Initializing data directories and files.")
