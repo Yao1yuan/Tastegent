@@ -4,17 +4,17 @@ python-dotenv
 pydantic
 anthropic
 openai
-
-google-generativeai  
-
+google-generativeai
 python-multipart
 Pillow
 httpx
 python-jose[cryptography]
-
-# 关键修复组合
 bcrypt==3.2.0
 passlib[bcrypt]
-
 certifi
 gunicorn
+
+# Database dependencies
+sqlalchemy
+psycopg2-binary
+alembic

@@ -1,73 +1,43 @@
+# backend/main.py
 from fastapi import FastAPI, HTTPException, UploadFile, File, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import List, Optional
 import os
-import json
-import shutil
-import google.generativeai as genai
 import io
-from PIL import Image
 import uuid
 from pathlib import Path
 import logging
 from dotenv import load_dotenv
-from passlib.context import CryptContext
-from jose import JWTError, jwt
-from datetime import datetime, timedelta
-import certifi
+from PIL import Image
+from sqlalchemy.orm import Session
 
-# --- 1. Basic Setup ---
-os.environ['GRPC_DEFAULT_SSL_ROOTS_FILE_PATH'] = certifi.where()
+# Import database-related components from our new files
+from . import models, database
+
+# --- 1. Basic Setup & Path Configuration ---
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 load_dotenv()
 
-# --- 2. FINAL & ROBUST Path Configuration ---
+# This is now only for uploads. The database handles menu data persistence.
 IS_RENDER_ENV = 'RENDER' in os.environ
-DATA_DIR = None
-
-if IS_RENDER_ENV:
-    render_disk_path = Path("/var/data")
-    # Check if the persistent disk is mounted and writable
-    if render_disk_path.exists() and os.access(render_disk_path, os.W_OK):
-        DATA_DIR = render_disk_path
-        logger.info(f"Persistent disk found and writable at {DATA_DIR}.")
-    else:
-        # Fallback to a temporary directory if the disk is not available
-        DATA_DIR = Path("/tmp/tastegent_temp_data")
-        logger.warning(f"!!! PERSISTENT DISK NOT FOUND at '{render_disk_path}' !!!")
-        logger.warning(f"Falling back to temporary storage at '{DATA_DIR}'.")
-        logger.warning("Data will NOT persist across restarts. Check your Render service 'Disks' configuration.")
-else:
-    # Local development uses a directory relative to the script file
-    DATA_DIR = Path(__file__).parent.resolve()
-    logger.info(f"Local environment. Data directory set to: {DATA_DIR}")
-
+DATA_DIR = Path("/var/data") if IS_RENDER_ENV else Path(__file__).parent.resolve()
 UPLOAD_DIR = DATA_DIR / "uploads"
-MENU_FILE_PATH = DATA_DIR / "menu.json"
-
-# --- 3. Pre-startup Directory Creation ---
-logger.info(f"Ensuring data directory '{DATA_DIR}' and uploads subdir '{UPLOAD_DIR}' exist.")
+logger.info(f"Uploads directory set to: {UPLOAD_DIR}")
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-logger.info("Directories are ready.")
 
-# --- 4. FastAPI App Initialization ---
-app = FastAPI(title="Tastegent API")
+# --- 2. FastAPI App Initialization ---
+app = FastAPI(title="Tastegent API with PostgreSQL")
 
-# --- 5. Application Startup Event ---
-@app.on_event("startup")
-def on_startup():
-    logger.info("Executing startup tasks.")
-    if not MENU_FILE_PATH.exists():
-        logger.warning(f"{MENU_FILE_PATH} not found. Creating a new empty menu file.")
-        with open(MENU_FILE_PATH, "w") as f:
-            json.dump([], f, indent=2)
-    logger.info("Startup tasks complete.")
+# --- 3. Database Table Creation ---
+# This line tells SQLAlchemy to create all the tables defined in our models
+# (specifically, the 'menu_items' table) if they don't already exist.
+# In a production app, we'd use Alembic for migrations, but this is fine for initial setup.
+models.Base.metadata.create_all(bind=database.engine)
 
-# --- 6. Middleware & Static Files ---
+# --- 4. Middleware & Static Files ---
 allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173").split(',')
 app.add_middleware(
     CORSMiddleware,
@@ -76,39 +46,113 @@ app.add_middleware(
 )
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 
-# --- 7. Simplified Models and Data Helpers ---
-class MenuItem(BaseModel): id: int; name: str; description: str; price: float; tags: List[str]; imageUrl: Optional[str] = None
-def load_menu_data() -> List[dict]:
-    try:
-        with open(MENU_FILE_PATH, "r") as f: return json.load(f)
-    except: return []
-def save_menu_data(data: List[dict]):
-    with open(MENU_FILE_PATH, "w") as f: json.dump(data, f, indent=2)
+# --- 5. Pydantic Models (for API validation) ---
+class MenuItemBase(BaseModel):
+    name: str
+    description: str
+    price: float
+    tags: List[str]
+    imageUrl: Optional[str] = None
 
-# --- 8. API Endpoints ---
+class MenuItemCreate(MenuItemBase):
+    pass
+
+class MenuItemUpdate(MenuItemBase):
+    pass
+
+class MenuItem(MenuItemBase):
+    id: int
+    class Config:
+        orm_mode = True # This allows the model to read data from ORM objects
+
+class ImageUrlPayload(BaseModel):
+    imageUrl: str
+
+# --- 6. Dependency for Database Session ---
+def get_db():
+    db = database.SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+# --- 7. API Endpoints (rewritten for Database) ---
 @app.get("/")
-def get_root(): return {"message": "API is running"}
+def get_root():
+    return {"message": "API is running with PostgreSQL backend."}
 
 @app.get("/menu", response_model=List[MenuItem])
-def get_menu(): return load_menu_data()
+def get_menu(db: Session = Depends(get_db)):
+    """Returns all menu items from the database."""
+    menu_items = db.query(models.MenuItem).order_by(models.MenuItem.id).all()
+    return menu_items
+
+@app.post("/admin/menu", response_model=MenuItem, status_code=201)
+def create_menu_item(item: MenuItemCreate, db: Session = Depends(get_db)):
+    """Creates a new menu item in the database."""
+    db_item = models.MenuItem(**item.model_dump())
+    db.add(db_item)
+    db.commit()
+    db.refresh(db_item)
+    return db_item
+
+@app.put("/admin/menu/{item_id}", response_model=MenuItem)
+def update_menu_item(item_id: int, item_update: MenuItemUpdate, db: Session = Depends(get_db)):
+    """Updates a menu item in the database."""
+    db_item = db.query(models.MenuItem).filter(models.MenuItem.id == item_id).first()
+    if not db_item:
+        raise HTTPException(status_code=404, detail="Menu item not found")
+
+    for key, value in item_update.model_dump().items():
+        setattr(db_item, key, value)
+
+    db.commit()
+    db.refresh(db_item)
+    return db_item
+
+@app.put("/admin/menu/{item_id}/image")
+def update_menu_item_image(item_id: int, payload: ImageUrlPayload, db: Session = Depends(get_db)):
+    """Updates only the image URL for a menu item."""
+    db_item = db.query(models.MenuItem).filter(models.MenuItem.id == item_id).first()
+    if not db_item:
+        raise HTTPException(status_code=404, detail="Menu item not found")
+
+    db_item.imageUrl = payload.imageUrl
+    db.commit()
+    return {"message": f"Image for item {item_id} updated successfully."}
+
+
+@app.delete("/admin/menu/{item_id}")
+def delete_menu_item(item_id: int, db: Session = Depends(get_db)):
+    """Deletes a menu item from the database."""
+    db_item = db.query(models.MenuItem).filter(models.MenuItem.id == item_id).first()
+    if not db_item:
+        raise HTTPException(status_code=404, detail="Menu item not found")
+
+    db.delete(db_item)
+    db.commit()
+    return {"message": f"Menu item {item_id} deleted successfully."}
 
 @app.post("/upload")
 async def upload_image(file: UploadFile = File(...)):
+    """Uploads an image to the persistent disk."""
     if not file.content_type or not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="Only images are allowed.")
     try:
         content = await file.read()
         image = Image.open(io.BytesIO(content))
         if image.mode in ("RGBA", "P"): image = image.convert("RGB")
+
         filename = f"{uuid.uuid4()}.jpg"
         image.thumbnail((1920, 1080))
         image.save(UPLOAD_DIR / filename, "JPEG", quality=85)
+
         return {"url": f"/uploads/{filename}"}
     except Exception as e:
-        logger.error(f"Upload failed: {e}")
-        raise HTTPException(status_code=500, detail="Upload failed.")
+        logger.error(f"Image upload failed: {e}")
+        raise HTTPException(status_code=500, detail="Image upload failed.")
 
-# --- The rest of your endpoints would go here (login, update, etc.) ---
+# ... (You can add back the Auth and AI chat endpoints here if needed, adapting them to the new structure) ...
 
 if __name__ == "__main__":
     import uvicorn

@@ -8,8 +8,8 @@ services:
     runtime: python
     # The root of the backend code
     rootDir: ./backend
-    # Command to install dependencies
-    buildCommand: "pip install -r requirements.txt"
+    # Command to install dependencies AND run database migrations
+    buildCommand: "pip install -r requirements.txt && alembic upgrade head"
     # Command to start the server
     startCommand: "uvicorn main:app --host 0.0.0.0 --port 8000"
     # Health check to ensure the service is running

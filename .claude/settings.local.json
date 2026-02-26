@@ -11,7 +11,8 @@
       "Bash(python:*)",
       "Bash(pytest)",
       "Bash(npx tailwindcss:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(alembic init:*)"
     ]
   }
 }
