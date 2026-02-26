@@ -14,7 +14,7 @@ from PIL import Image
 from sqlalchemy.orm import Session
 
 # Import database-related components from our new files
-from . import models, database
+import models, database
 
 # --- 1. Basic Setup & Path Configuration ---
 logging.basicConfig(level=logging.INFO)

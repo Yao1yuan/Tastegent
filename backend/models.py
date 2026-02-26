@@ -1,6 +1,6 @@
 # backend/models.py
 from sqlalchemy import Column, Integer, String, Float, ARRAY
-from .database import Base
+from database import Base
 
 class MenuItem(Base):
     __tablename__ = "menu_items"
