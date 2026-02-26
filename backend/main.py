@@ -43,6 +43,9 @@ else:
 UPLOAD_DIR = DATA_DIR / "uploads"
 MENU_FILE_PATH = DATA_DIR / "menu.json"
 
+# --- FastAPI App Initialization ---
+app = FastAPI()
+
 # --- Application Startup: Ensure directories and files exist ---
 @app.on_event("startup")
 def startup_event():
@@ -56,85 +59,6 @@ def startup_event():
         logger.warning(f"{MENU_FILE_PATH} not found. Creating an empty menu file.")
         with open(MENU_FILE_PATH, "w") as f:
             json.dump([], f)
-
-# --- JWT and Password Hashing Configuration ---
-SECRET_KEY = os.getenv("SECRET_KEY")
-if not SECRET_KEY:
-    raise ValueError("No SECRET_KEY set for JWT")
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
-
-# --- Pydantic Models for Authentication ---
-class Token(BaseModel):
-    access_token: str
-    token_type: str
-
-class TokenData(BaseModel):
-    username: Optional[str] = None
-
-class User(BaseModel):
-    username: str
-    disabled: Optional[bool] = None
-
-class UserInDB(User):
-    hashed_password: str
-
-# --- User Database (in-memory for simplicity) ---
-# In a real application, this would be a database.
-admin_password = os.getenv("ADMIN_PASSWORD", "default_password")
-hashed_password = pwd_context.hash(admin_password)
-fake_users_db = {
-    os.getenv("ADMIN_USERNAME", "admin"): {
-        "username": os.getenv("ADMIN_USERNAME", "admin"),
-        "hashed_password": hashed_password,
-        "disabled": False,
-    }
-}
-
-# --- Authentication Helper Functions ---
-def verify_password(plain_password, hashed_password):
-    return pwd_context.verify(plain_password, hashed_password)
-
-def get_user(db, username: str):
-    if username in db:
-        user_dict = db[username]
-        return UserInDB(**user_dict)
-
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
-    to_encode = data.copy()
-    if expires_delta:
-        expire = datetime.utcnow() + expires_delta
-    else:
-        expire = datetime.utcnow() + timedelta(minutes=15)
-    to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-    return encoded_jwt
-
-# --- Dependency to get current user ---
-async def get_current_active_user(token: str = Depends(oauth2_scheme)):
-    credentials_exception = HTTPException(
-        status_code=401,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
-        if username is None:
-            raise credentials_exception
-        token_data = TokenData(username=username)
-    except JWTError:
-        raise credentials_exception
-    user = get_user(fake_users_db, username=token_data.username)
-    if user is None or user.disabled:
-        raise credentials_exception
-    return user
-
-# --- FastAPI App Initialization ---
-app = FastAPI()
 
 # Get allowed origins from environment variable
 allowed_origins_str = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173")

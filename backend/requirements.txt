@@ -5,7 +5,7 @@ pydantic
 anthropic
 openai
 
-google-generativeai  
+google-genai  
 
 python-multipart
 Pillow
