@@ -40,7 +40,7 @@ allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173").split(',
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[origin.strip() for origin in allowed_origins],
-    allow_credentials=True, methods=["*"], headers=["*"],
+    allow_credentials=True, allow_methods=["*"], allow_headers=["*"],
 )
 
 # 不再需要 app.mount("/uploads", ...) 因为图片已经不在服务器上了！
