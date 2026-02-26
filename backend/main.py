@@ -1,34 +1,27 @@
 # backend/main.py
 from fastapi import FastAPI, HTTPException, UploadFile, File, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import List, Optional
 import os
-import io
-import uuid
-from pathlib import Path
 import logging
 from dotenv import load_dotenv
-from PIL import Image
 from sqlalchemy.orm import Session
+
+# 引入 Cloudinary
+import cloudinary
+import cloudinary.uploader
 
 # Import database-related components
 import models, database
 
-# --- 1. Basic Setup & Path Configuration ---
+# --- 1. Basic Setup ---
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 load_dotenv()
 
-IS_RENDER_ENV = 'RENDER' in os.environ
-DATA_DIR = Path("/var/data") if IS_RENDER_ENV else Path(__file__).parent.resolve()
-UPLOAD_DIR = DATA_DIR / "uploads"
-
-# FIX: Create the directory immediately, before FastAPI initializes and mounts it.
-UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-logger.info(f"Uploads directory is configured and verified at: {UPLOAD_DIR}")
-
+# 不再需要配置本地 UPLOAD_DIR，因为图片将直接飞向云端！
+# Cloudinary 会自动读取环境变量中的 CLOUDINARY_URL 进行鉴权，所以这里不需要额外写配置代码。
 
 # --- 2. FastAPI App Initialization ---
 app = FastAPI(title="Tastegent API with PostgreSQL")
@@ -37,14 +30,12 @@ app = FastAPI(title="Tastegent API with PostgreSQL")
 @app.on_event("startup")
 def startup_event():
     logger.info("Application startup...")
-    # Directory creation removed from here
     logger.info("Initializing database tables...")
     models.Base.metadata.create_all(bind=database.engine)
     logger.info("Database tables are ready.")
     logger.info("Startup complete.")
 
-
-# --- 4. Middleware & Static Files ---
+# --- 4. Middleware ---
 allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173").split(',')
 app.add_middleware(
     CORSMiddleware,
@@ -52,9 +43,7 @@ app.add_middleware(
     allow_credentials=True, methods=["*"], headers=["*"],
 )
 
-# This will now succeed because the directory was created in step 1
-# We keep check_dir=False as a good practice, but the core issue is now solved.
-app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR, check_dir=False), name="uploads")
+# 不再需要 app.mount("/uploads", ...) 因为图片已经不在服务器上了！
 
 # --- 5. Pydantic Models ---
 class MenuItemBase(BaseModel):
@@ -116,20 +105,35 @@ def delete_menu_item(item_id: int, db: Session = Depends(get_db)):
     db.commit()
     return {"message": "Menu item deleted successfully."}
 
+# --- 🔥 重写的 Upload 接口 ---
 @app.post("/upload")
 async def upload_image(file: UploadFile = File(...)):
     if not file.content_type or not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="Only images are allowed.")
     try:
+        # 读取上传的文件内容到内存
         content = await file.read()
-        image = Image.open(io.BytesIO(content))
-        if image.mode in ("RGBA", "P"): image = image.convert("RGB")
-        filename = f"{uuid.uuid4()}.jpg"
-        image.thumbnail((1920, 1080))
-        image.save(UPLOAD_DIR / filename, "JPEG", quality=85)
-        return {"url": f"/uploads/{filename}"}
+
+        # 将文件直接传给 Cloudinary
+        upload_result = cloudinary.uploader.upload(
+            content,
+            folder="tastegent_menu", # 统一放到 Cloudinary 的这个文件夹下，方便管理
+            transformation=[
+                # 让 Cloudinary 直接帮我们做缩放和优化，省去本地 PIL 的计算！
+                {'width': 1920, 'height': 1080, 'crop': 'limit'},
+                {'quality': 'auto', 'fetch_format': 'auto'} # 自动转码为最省流的格式（比如 WebP）
+            ]
+        )
+
+        # Cloudinary 会返回一个安全的 https 链接
+        secure_url = upload_result.get("secure_url")
+        logger.info(f"Image successfully uploaded to Cloudinary: {secure_url}")
+
+        # 返回给前端这个云端永久链接
+        return {"url": secure_url}
+
     except Exception as e:
-        logger.error(f"Image upload failed: {e}")
+        logger.error(f"Cloudinary image upload failed: {e}")
         raise HTTPException(status_code=500, detail="Image upload failed.")
 
 if __name__ == "__main__":

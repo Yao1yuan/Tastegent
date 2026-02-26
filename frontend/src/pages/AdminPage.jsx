@@ -171,7 +171,7 @@ function AdminPage() {
               )}
               {item.imageUrl ? (
                 // RELIABLE CACHE BUSTING: Use a unique key for the image
-                <img key={item.imageUrl} src={`${API_URL}${item.imageUrl}`} alt={item.name} className="card-image" />
+                <img key={item.imageUrl} src={item.imageUrl.startsWith('http') ? item.imageUrl : `${API_URL}${item.imageUrl}`} alt={item.name} className="card-image" />
               ) : (
                 <div className="no-image-placeholder">No Image</div>
               )}

@@ -84,7 +84,7 @@ const MenuCategory = ({ category, isExpanded, onToggle, onAskDish }) => (
               </div>
               {item.imageUrl && (
                 <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-lg overflow-hidden shrink-0">
-                  <img src={`${API_URL}${item.imageUrl}`} alt={item.name} className="w-full h-full object-cover" />
+                  <img src={item.imageUrl.startsWith('http') ? item.imageUrl : `${API_URL}${item.imageUrl}`} alt={item.name} className="w-full h-full object-cover" />
                 </div>
               )}
             </div>
