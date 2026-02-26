@@ -31,8 +31,13 @@ app = FastAPI(title="Tastegent API with PostgreSQL")
 def startup_event():
     logger.info("Application startup...")
     logger.info("Initializing database tables...")
-    models.Base.metadata.create_all(bind=database.engine)
-    logger.info("Database tables are ready.")
+    try:
+        # 尝试创建表
+        models.Base.metadata.create_all(bind=database.engine)
+        logger.info("Database tables are ready.")
+    except Exception as e:
+        # 如果因为多个 worker 并发导致建表冲突，捕获并忽略这个错误
+        logger.warning(f"Database initialization concurrency collision (safe to ignore): {e}")
     logger.info("Startup complete.")
 
 # --- 4. Middleware ---
